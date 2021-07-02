@@ -4,15 +4,14 @@ import timeit
 
 import numpy as np
 import tensorflow as tf
+from chess import Board, Move
 from dlchess.agents.base import Agent
 from dlchess.encoders.prime import PrimeEncoder
 from dlchess.rl.experience import ExperienceBuffer, ExperienceCollector
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.optimizers import SGD, RMSprop
 from tqdm.auto import tqdm
-
-from chess import Board
 
 physical_devices = tf.config.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -85,6 +84,7 @@ class PrimeAgent(Agent):
         num_rounds: int = 1600,
         collector: ExperienceCollector = None,
         prevent_repetition: bool = False,
+        stop_early: bool = True,
     ):
         self.model = model
         self.encoder = encoder
@@ -92,7 +92,9 @@ class PrimeAgent(Agent):
         self.c = 5.0
         self.noise = 0.3
         self.num_rounds = num_rounds
+        self.stop_early = stop_early
         self.verbose = False
+        self._debug = False
 
         self.prevent_repetition = prevent_repetition
         self.move_history = []
@@ -102,7 +104,7 @@ class PrimeAgent(Agent):
 
         # Need to store optimizer state
         self.opt = (
-            self.model.optimizer if self.model.optimizer else RMSprop(learning_rate=0.2)
+            self.model.optimizer if self.model.optimizer else SGD(learning_rate=0.2)
         )
 
     def set_collector(self, collector: ExperienceCollector):
@@ -137,9 +139,10 @@ class PrimeAgent(Agent):
         return max(node.moves(), key=score_branch)
 
     def select_move(self, game_state):
+        game_state = game_state.copy()
+
         # to remove timing:
         # this stuff; stuff before return; stuff in create_node around prediction
-        game_state = game_state.copy()
         self.prediction_time = 0.0
         self.run_time = 0.0
         start_time = timeit.default_timer()
@@ -184,7 +187,7 @@ class PrimeAgent(Agent):
             top_5 = sorted(root.moves(), key=root.visit_count, reverse=True)[:5]
             top_5 = [(game_state.san(x), root.visit_count(x)) for x in top_5]
 
-            # scored = self.select_branch(node, _list=True)[:5]
+            # scored = self.select_branch(root, _list=True)[:5]
             cb = top_5[0][0]
             if cb != best:
                 best = cb
@@ -196,18 +199,33 @@ class PrimeAgent(Agent):
                     f"{top_5[0][0]} {top_5[0][1]} | {top_5[1][0]} {top_5[1][1]} | {top_5[2][0]} {top_5[2][1]}",
                     refresh=False,
                 )
+                if i % 50 == 0 and self._debug:
+                    print(
+                        f"{i}: {top_5[0][0]} {top_5[0][1]} ({int((top_5[0][1] / (i + 1)) * 100)}%) | {top_5[1][0]} {top_5[1][1]} ({int((top_5[1][1] / (i + 1)) * 100)}%) | {top_5[2][0]} {top_5[2][1]} ({int((top_5[2][1] / (i + 1)) * 100)}%)"
+                    )
+                    scored = self.select_branch(root, _list=True)[:5]
+                    scored = [
+                        (game_state.san(Move.from_uci(x[0])), x[1]) for x in scored
+                    ]
+                    print(scored)
+                    print("")
             except IndexError:
                 t.set_description(
                     f"{top_5[0][0]} {top_5[0][1]} | {top_5[1][0]} {top_5[1][1]}",
                     refresh=False,
                 )
+                if i % 50 == 0 and self._debug:
+                    print(
+                        f"{i}: {top_5[0][0]} {top_5[0][1]} ({int((top_5[0][1] / (i + 1)) * 100)}%) | {top_5[1][0]} {top_5[1][1]} ({int((top_5[1][1] / (i + 1)) * 100)}%)"
+                    )
 
             if (
                 top_5[0][1] > (top_5[1][1] * es_factor)
                 and i >= self.num_rounds // (es_factor * 2)
-                and i >= 10
+                and i >= 50
                 # and cb == scored[0][0]
                 and early_stop is None
+                and self.stop_early
             ):
                 # early_stop = (top_5[0][0], i)
                 break

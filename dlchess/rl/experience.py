@@ -112,11 +112,12 @@ class ZeroCollector(ExperienceCollector):
         self._current_episode_states.append(state)
         self._current_episode_visit_counts.append(visit_counts)
 
-    def complete_episode(self, reward: int):
+    def complete_episode(self, reward: int | None):
         num_states = len(self._current_episode_states)
         self.states.extend(self._current_episode_states)
         self.visit_counts.extend(self._current_episode_visit_counts)
-        self.rewards.extend([reward] * num_states)
+        if reward is not None:
+            self.rewards.extend([reward] * num_states)
 
         self._current_episode_states = []
         self._current_episode_visit_counts = []

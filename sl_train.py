@@ -5,22 +5,24 @@ from random import shuffle
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from dlchess.agents.prime import PrimeAgent
-from dlchess.rl.experience import load_experience
 from tensorflow.keras.models import load_model
 from tensorflow.keras.optimizers import RMSprop
 from tqdm.auto import tqdm
 
-model_name = "theta"
+from dlchess.agents.prime import PrimeAgent
+from dlchess.rl.experience import load_experience
+
+model_name = "omega"
+size = "large"
 
 logging.basicConfig(
-    filename=f"logs/{model_name}_small_sl.log", encoding="utf-8", level=logging.INFO
+    filename=f"logs/{model_name}_{size}_sl.log", encoding="utf-8", level=logging.INFO
 )
 
 plot = False
 learning_rate = 0.01
 batch_size = 2048
-epochs = 20
+epochs = 10
 validation_split = 0.05
 loss_weights = [1, 1]
 
@@ -28,7 +30,7 @@ logging.info(
     f"LR {learning_rate} | Batch Size {batch_size} | Epochs {epochs} | Val Split {validation_split} | Loss Weights {loss_weights}"
 )
 
-model = load_model(f"dlchess/models/{model_name}_small_0")
+model = load_model(f"dlchess/models/{model_name}_{size}_0")
 agent = PrimeAgent(model, None)
 opt = RMSprop(learning_rate=learning_rate)
 agent.opt = opt
@@ -102,6 +104,11 @@ for f in tqdm(merged_files, desc="Training steps"):
         opt = RMSprop(learning_rate=learning_rate / 10)
         agent.opt = opt
         agent.model.optimizer = None
+
+    if i % 30 == 0 and i > 0:
+        opt = RMSprop(learning_rate=learning_rate)
+        agent.opt = opt
+        agent.model.optimizer = None
     # elif i == 10:
     #     opt = RMSprop(learning_rate=learning_rate * 100)
     #     agent.opt = opt
@@ -163,5 +170,5 @@ for f in tqdm(merged_files, desc="Training steps"):
     i += 1
 
 
-agent.serialize(f"dlchess/models/{model_name}_small_1")
-agent.serialize(f"dlchess/models/{model_name}_small_progress")
+agent.serialize(f"dlchess/models/{model_name}_{size}_1")
+agent.serialize(f"dlchess/models/{model_name}_{size}_progress")

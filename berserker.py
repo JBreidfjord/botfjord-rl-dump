@@ -3,9 +3,13 @@ import threading
 import time
 
 import berserk
+import chess
+import chess.polyglot
 import h5py
 import requests
 import tensorflow as tf
+from tensorflow.keras import models
+
 from dlchess.agents.base import Agent
 from dlchess.agents.prime import PrimeAgent
 from dlchess.bot.config import config
@@ -13,10 +17,6 @@ from dlchess.encoders.base import Encoder
 from dlchess.encoders.omega import OmegaEncoder
 from dlchess.encoders.theta import ThetaEncoder
 from dlchess.rl.experience import ZeroCollector
-from tensorflow.keras import models
-
-import chess
-import chess.polyglot
 
 physical_devices = tf.config.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -35,8 +35,15 @@ class Game(threading.Thread):
         self._is_running = True
         super().__init__(**kwargs)
 
+        self.game_id = game_id
+        self.client = client
+        self.stream = self.client.bots.stream_game_state(game_id)
+
+        self.board = None
+        self.get_game_state()
+
         encoder = OmegaEncoder()
-        model = models.load_model("dlchess/models/omega_small_progress")
+        model = models.load_model(f"dlchess/models/omega_{self.color}_progress")
         self.collector = ZeroCollector()
         self.collector.begin_episode()
         self.agent = PrimeAgent(
@@ -44,20 +51,14 @@ class Game(threading.Thread):
             encoder,
             num_rounds=800,
             collector=self.collector,
-            prevent_repetition=True,
         )
-        self.agent.set_verbosity(True)
-        # self.agent.set_temperature(5)
+        # self.agent.set_verbosity(True)
+        self.agent._debug = True
+        self.agent.stop_early = False
+        self.agent.set_temperature(1)
         self.book = False
 
         self._is_searching = False
-
-        self.game_id = game_id
-        self.client = client
-        self.stream = self.client.bots.stream_game_state(game_id)
-
-        self.board = None
-        self.get_game_state()
 
         self.name = client.account.get()["id"]
         self.chat_active = True

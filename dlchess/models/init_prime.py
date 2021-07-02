@@ -10,7 +10,7 @@ from tensorflow.keras.layers import (
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 
-num_blocks = 3
+num_blocks = 5
 filter_size = 128
 input_size = (8, 8, 20)
 
@@ -98,5 +98,4 @@ value_output = Dense(
 )(x)
 
 model = Model(board_input, [policy_output, value_output], name="omega")
-
-model.save("dlchess/models/omega_small_0", include_optimizer=False)
+model.save("dlchess/models/omega_0", include_optimizer=False)

@@ -10,8 +10,8 @@ from tensorflow.keras.layers import (
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 
-num_blocks = 10
-filter_size = 256
+num_blocks = 5
+filter_size = 128
 
 
 def build_res_block(x, idx):
@@ -74,7 +74,7 @@ x = BatchNormalization(axis=-1, name="policy_batch_norm")(x)
 x = Activation("relu", name="policy_activation")(x)
 x = Flatten(name="policy_flatten")(x)
 policy_output = Dense(
-    1968,
+    1880,
     kernel_regularizer=l2(1e-4),
     activation="softmax",
     name="policy_output",
@@ -98,4 +98,5 @@ value_output = Dense(
 
 model = Model(board_input, [policy_output, value_output], name="zero")
 
-model.save("dlchess/models/zero_large_0", include_optimizer=False)
+model.save("dlchess/models/zero_0", include_optimizer=False)
+model.save("dlchess/models/zero_progress", include_optimizer=False)

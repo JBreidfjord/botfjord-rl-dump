@@ -34,7 +34,7 @@ class Game(threading.Thread):
         super().__init__(**kwargs)
 
         encoder = ThetaEncoder()
-        model = models.load_model("dlchess/models/theta_small_progress")
+        model = models.load_model("dlchess/models/theta_large_progress")
         self.collector = ZeroCollector()
         self.collector.begin_episode()
         self.agent = PrimeAgent(

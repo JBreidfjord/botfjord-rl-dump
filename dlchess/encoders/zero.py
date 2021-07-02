@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
-from dlchess.encoders.base import Encoder
-from dlchess.rl.policy_index import policy_index
-from tensorflow.keras.models import Model
-
 from chess import Board, Move
+from dlchess.encoders.base import Encoder
+from dlchess.rl.policy_index import short_policy_index as policy_index
+from tensorflow.keras.models import Model
 
 
 class ZeroEncoder(Encoder):
@@ -70,5 +69,10 @@ class ZeroEncoder(Encoder):
             return self.encoder_model.output_shape[-1]
         return (8, 8, 17)
 
-    def num_moves():
+    def num_moves(self):
         return len(policy_index)
+
+    def is_valid_move(self, move: Move | str):
+        if isinstance(move, Move):
+            move = move.uci()
+        return move in policy_index
