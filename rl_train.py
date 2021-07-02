@@ -41,7 +41,10 @@ def worker(
     _id,
 ):
     logging.basicConfig(
-        filename=f"logs/{model_name}_training.log", encoding="utf-8", level=logging.INFO
+        filename=f"logs/{model_name}_training.log",
+        encoding="utf-8",
+        level=logging.INFO,
+        format="%(message)s",
     )
 
     """Revert this back"""
@@ -206,7 +209,10 @@ def mp_simulate(
     num_games, num_procs, encoder, temperature, model_name, model_version, search_rounds
 ):
     logging.basicConfig(
-        filename=f"logs/{model_name}_training.log", encoding="utf-8", level=logging.INFO
+        filename=f"logs/{model_name}_training.log",
+        encoding="utf-8",
+        level=logging.INFO,
+        format="%(message)s",
     )
     context = mp.get_context("spawn")
     # Start processes
@@ -277,6 +283,13 @@ def simulate_game(white_player, black_player, verbose=0, limit=True):
     agents: dict[bool, PrimeAgent] = {True: white_player, False: black_player}
     engine = chess.engine.SimpleEngine.popen_uci("/usr/games/stockfish")
 
+    with open("logs/cp_score.log", mode="r") as f:
+        scores = f.readlines()
+    scores = np.array([int(x.strip()) for x in scores], dtype="float32")
+    scores /= 100
+    mean_score = np.mean(scores)
+    std_score = np.std(scores)
+
     while not game.is_game_over(claim_draw=True):
         color = game.turn
         if verbose:
@@ -292,6 +305,9 @@ def simulate_game(white_player, black_player, verbose=0, limit=True):
         )
 
         cp_score = analysis[0]["score"].pov(color).score(mate_score=10000)
+        with open("logs/cp_score.log", mode="a") as f:
+            f.write(str(cp_score) + "\n")
+
         next_move = agents[color].select_move(game)
         # next_move_cp_value = [
         #     x["score"].pov(color).score(mate_score=10000)
@@ -304,7 +320,10 @@ def simulate_game(white_player, black_player, verbose=0, limit=True):
         # reward = max(-1, 1 - (cp_loss / 100))
 
         # remove this later
-        reward = np.clip((cp_score / 100), -1, 1)
+        cp_score /= 100
+        cp_score -= mean_score
+        cp_score /= std_score
+        reward = np.clip(cp_score, -1, 1)
 
         if agents[color].collector is not None:
             agents[color].collector.rewards.extend([reward])
@@ -423,7 +442,10 @@ def check_lichess(experience_buffer: ExperienceBuffer):
 
 def manager(model_name, model_version, exp_step, result_queue, encoder):
     logging.basicConfig(
-        filename=f"logs/{model_name}_training.log", encoding="utf-8", level=logging.INFO
+        filename=f"logs/{model_name}_training.log",
+        encoding="utf-8",
+        level=logging.INFO,
+        format="%(message)s",
     )
     logging.info("\n")
     logging.info(f"Start {model_name}_{model_version} Step {exp_step}")
@@ -528,7 +550,10 @@ if __name__ == "__main__":
     target_version = 10
 
     logging.basicConfig(
-        filename=f"logs/{model_name}_training.log", encoding="utf-8", level=logging.INFO
+        filename=f"logs/{model_name}_training.log",
+        encoding="utf-8",
+        level=logging.INFO,
+        format="%(message)s",
     )
 
     os.makedirs(f"/data/code/botfjord/data/{model_name}_{model_version}", exist_ok=True)
