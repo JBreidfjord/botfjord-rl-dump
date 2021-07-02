@@ -48,12 +48,38 @@ def worker(
     # model = models.load_model(
     #     f"dlchess/models/{model_name}_{model_version}", compile=False
     # )
-    white_model = models.load_model(
-        f"dlchess/models/{model_name}_white_progress", compile=False
-    )
-    black_model = models.load_model(
-        f"dlchess/models/{model_name}_black_progress", compile=False
-    )
+
+    # Gives 1/10 chance to use an older model version
+    # Idea is to add variety to opponents, prevent memorization,
+    # and prevent forgetting how to play weaker opponents
+    white_models = [
+        f.path
+        for f in os.scandir(f"dlchess/models/")
+        if f.name.startswith(f"{model_name}_white_") and not f.name.endswith("progress")
+    ]
+    black_models = [
+        f.path
+        for f in os.scandir(f"dlchess/models/")
+        if f.name.startswith(f"{model_name}_black_") and not f.name.endswith("progress")
+    ]
+    if white_models:
+        w_probs = [0.1 / len(white_models)] * len(white_models)
+        white_models.append(f"dlchess/models/{model_name}_white_progress")
+        w_probs.append(0.9)
+        white_path = np.random.choice(white_models, p=w_probs)
+    else:
+        white_path = f"dlchess/models/{model_name}_white_progress"
+    if black_models:
+        b_probs = [0.1 / len(black_models)] * len(black_models)
+        black_models.append(f"dlchess/models/{model_name}_black_progress")
+        b_probs.append(0.9)
+        black_path = np.random.choice(black_models, p=b_probs)
+    else:
+        black_path = f"dlchess/models/{model_name}_black_progress"
+
+    white_model = models.load_model(white_path, compile=False)
+    black_model = models.load_model(black_path, compile=False)
+
     white_player = PrimeAgent(white_model, encoder, num_rounds=search_rounds)
     black_player = PrimeAgent(black_model, encoder, num_rounds=search_rounds)
 
@@ -481,7 +507,9 @@ def manager(model_name, model_version, exp_step, result_queue, encoder):
     black_player.train(black_exp, batch_size, loss_weights=[0.25, 1])
     black_player.serialize(f"dlchess/models/{model_name}_black_progress")
 
-    # if exp_step % 10 == 0 and exp_step > 0:
+    if exp_step % 10 == 0 and exp_step > 0:
+        white_player.serialize(f"dlchess/models/{model_name}_white_{exp_step // 10}")
+        black_player.serialize(f"dlchess/models/{model_name}_black_{exp_step // 10}")
     #   if evaluate_model(
     #      white_player, black_player, eval_games, eval_target, temperature
     # ):
